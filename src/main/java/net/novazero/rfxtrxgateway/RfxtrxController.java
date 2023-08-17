@@ -1,5 +1,6 @@
 package net.novazero.rfxtrxgateway;
 
+import io.micronaut.core.async.publisher.Publishers;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Controller;
@@ -33,6 +34,8 @@ import java.util.Optional;
 @Validated
 public class RfxtrxController {
     private static final Logger LOG = LoggerFactory.getLogger(RfxtrxController.class);
+    private static final String PING_COMMAND = "PING";
+    private static final String PING_RESPONSE = "PONG";
 
     private final RfxtrxService rfxtrxService;
     private final RfxtrxMessageConverter rfxtrxMessageConverter;
@@ -76,7 +79,14 @@ public class RfxtrxController {
     }
 
     @OnMessage
-    public void onMessage(String rawMessage) {
+    public Publisher<String> onMessage(String rawMessage, WebSocketSession session) {
+        if (rawMessage.equals(PING_COMMAND)) {
+            if (LOG.isTraceEnabled()) {
+                LOG.trace("Received ping command");
+            }
+            return session.send(PING_RESPONSE);
+        }
+
         try {
             var messageDto = jsonMediaTypeCodec.decode(RfxtrxMessageDto.class, rawMessage);
 
@@ -86,6 +96,8 @@ public class RfxtrxController {
                 LOG.debug("Received unknown message: " + rawMessage, codecException);
             }
         }
+
+        return Publishers.empty();
     }
 
     @Post()
