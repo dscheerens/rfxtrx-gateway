@@ -125,9 +125,15 @@ public class RfxtrxService {
     }
 
     public Flowable<WriteResult> writeMessage(RfxtrxMessage message) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Queuing message: " + message);
+        }
+
         var writeResultSubject = ReplaySubject.<WriteResult>create(1);
         var writeMessageCommand = new WriteMessageCommand(message, writeResultSubject);
-        writeMessageCommandSubject.onNext(writeMessageCommand);
+        synchronized (writeMessageCommandSubject) {
+            writeMessageCommandSubject.onNext(writeMessageCommand);
+        }
 
         return writeResultSubject.toFlowable(BackpressureStrategy.LATEST).observeOn(Schedulers.io());
     }
